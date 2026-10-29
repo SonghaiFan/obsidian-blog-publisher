@@ -108,7 +108,7 @@ export const ASK_PASS_SCRIPT_FILE = "obsidian_askpass.sh";
 export const ASK_PASS_SCRIPT = `#!/bin/sh
 
 if ! command -v curl >/dev/null 2>&1; then
-    echo "Obsidian Git authentication requires curl" >&2
+    echo "Blog Publisher authentication requires curl" >&2
     exit 1
 fi
 

@@ -1,11 +1,10 @@
 {
-    "author": "Songhai Fan; based on Obsidian Git by Vinzent03 and contributors",
+    "author": "Songhai Fan",
     "authorUrl": "https://github.com/SonghaiFan",
     "id": "songhai-blog-publisher",
     "name": "Blog Publisher",
-    "description": "Blog publishing and Git synchronization, based on Obsidian Git.",
+    "description": "Write, preview and publish your blog with integrated Git synchronization.",
     "isDesktopOnly": true,
-    "fundingUrl": "https://ko-fi.com/vinzent",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "minAppVersion": "1.13.0"
 }

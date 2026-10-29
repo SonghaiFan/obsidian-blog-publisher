@@ -149,9 +149,3 @@ If you have a large repo/vault I recommend staging individual files and setting 
 - The Line Authoring feature was developed by [GollyTicker](https://github.com/GollyTicker), so any questions may be best answered by her.
 - This plugin was initially developed by [denolehov](https://github.com/denolehov). Since March 2021, it's me [Vinzent03](https://github.com/Vinzent03) who is developing this plugin. That's why the GitHub repository got moved to my account in July 2024.
 - If you have any kind of feedback or questions, feel free to reach out via GitHub issues.
-
-## Support
-
-If you find this plugin useful and would like to support its development, you can support me on Ko-fi.
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F1F195IQ5)

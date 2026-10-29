@@ -14,7 +14,7 @@ export class PublisherSettingsTab extends ObsidianGitSettingsTab {
         return [
             {
                 name: "Blog Publisher",
-                desc: "基于 Obsidian Git。默认显示博客操作，完整 Git 功能保留在高级设置和命令面板。首次使用请停用原 Obsidian Git，再重新启用本插件。",
+                desc: "写作、预览与发布。完整 Git 功能可在高级设置和命令面板中使用。",
             },
             {
                 name: "公开发布目录",

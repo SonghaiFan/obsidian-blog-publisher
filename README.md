@@ -1,6 +1,6 @@
 # Blog Publisher
 
-一个基于 [Obsidian Git](https://github.com/Vinzent03/obsidian-git) 的桌面版 Obsidian 插件，将私有笔记同步与博客发布整合为一个插件。
+一个桌面版 Obsidian 插件，将私有笔记同步、预览、检查与博客发布整合在一起。
 
 ## 0.3.0 功能
 
