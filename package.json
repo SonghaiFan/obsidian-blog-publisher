@@ -1,6 +1,6 @@
 {
     "name": "songhai-blog-publisher",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Blog Publisher, a fork of Obsidian Git",
     "main": "main.js",
     "scripts": {

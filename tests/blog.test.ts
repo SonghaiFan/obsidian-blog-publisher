@@ -1,3 +1,4 @@
+import { PUBLISH_DEFAULTS, validatePublishing } from "../src/blog/publishing";
 import { describe, expect, it, vi } from "vitest";
 import { articleUrl, publicChanges } from "../src/blog/model";
 import { BlogService } from "../src/blog/service";
@@ -15,6 +16,7 @@ function setup() {
         displayError: vi.fn(),
     };
     const service = new BlogService(host as unknown as ObsidianGit);
+    vi.spyOn(service, "publishing", "get").mockReturnValue(PUBLISH_DEFAULTS);
     vi.spyOn(service, "identity").mockResolvedValue();
     const build = vi.spyOn(service, "build").mockResolvedValue();
     const run = vi.spyOn(service, "run").mockImplementation((_cmd, args) => {
@@ -42,6 +44,38 @@ describe("Blog Publisher integration", () => {
         ).toThrow();
         expect(publicChanges(["Notes/private.md"])).toBe(false);
     });
+    it("uses custom publishing paths and rejects overlapping or unsafe roots", () => {
+        const rules = validatePublishing({
+            publicFolder: "Writing/Public",
+            englishFolder: "English",
+            projectsFolder: "Work",
+            assetsFolder: "Media",
+            privateFolders: ["Journal", "Drafts"],
+        });
+        expect(
+            articleUrl(
+                "Writing/Public/English/Work/demo.md",
+                undefined,
+                "https://example.org",
+                rules
+            )
+        ).toBe("https://example.org/projects/demo");
+        expect(() =>
+            articleUrl("Blog/post.md", "post", "https://example.org", rules)
+        ).toThrow();
+        expect(publicChanges(["Writing/Public/new.md"], rules)).toBe(true);
+        expect(publicChanges([".blog-publisher.json"], rules)).toBe(true);
+        expect(publicChanges(["Journal/private.md"], rules)).toBe(false);
+        expect(() =>
+            validatePublishing({ publicFolder: "Notes/Public" })
+        ).toThrow();
+        expect(() =>
+            validatePublishing({ publicFolder: "../secret" })
+        ).toThrow();
+        expect(() =>
+            validatePublishing({ publicFolder: ".obsidian" })
+        ).toThrow();
+    });
     it("builds public commits before allowing push", async () => {
         const { service, build } = setup();
         await service.beforePush();
@@ -49,7 +83,9 @@ describe("Blog Publisher integration", () => {
     });
     it("does not build private-only backup commits", async () => {
         const { service, build, run } = setup();
-        run.mockResolvedValue("Notes/private.md\0");
+        run.mockImplementation((_cmd, args) =>
+            Promise.resolve(args[0] === "diff" ? "Notes/private.md\0" : "")
+        );
         await service.beforePush();
         expect(build).not.toHaveBeenCalled();
     });
@@ -64,7 +100,9 @@ describe("Blog Publisher integration", () => {
     });
     it("rejects a dirty public working tree before building", async () => {
         const { service, build, run } = setup();
-        run.mockResolvedValue("Blog/post.md\0");
+        run.mockImplementation((_cmd, args) =>
+            Promise.resolve(args[0] === "diff" ? "Blog/post.md\0" : "")
+        );
         await expect(service.beforePush()).rejects.toThrow("未提交");
         expect(build).not.toHaveBeenCalled();
     });

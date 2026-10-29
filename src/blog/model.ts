@@ -1,3 +1,8 @@
+import {
+    PUBLISH_DEFAULTS,
+    type PublishingConfig,
+    CONFIG_FILE,
+} from "./publishing";
 export interface BlogSettings {
     websitePath: string;
     nodePath: string;
@@ -12,13 +17,30 @@ export const BLOG_DEFAULTS: BlogSettings = {
     account: "SonghaiFan",
     blogUrl: "https://blog.songhai.site",
 };
-export function articleUrl(file: string, slug: unknown, base: string): string {
-    if (!/^Blog\/(?:en\/)?(?:projects\/)?[^/]+\.md$/.test(file))
-        throw new Error("请打开 Blog 中的公开文章。");
-    const en = file.startsWith("Blog/en/");
-    const project = file.startsWith(
-        en ? "Blog/en/projects/" : "Blog/projects/"
+export function articleUrl(
+    file: string,
+    slug: unknown,
+    base: string,
+    rules: PublishingConfig = PUBLISH_DEFAULTS
+): string {
+    const folders = [
+        [rules.publicFolder, false, false],
+        [`${rules.publicFolder}/${rules.englishFolder}`, true, false],
+        [`${rules.publicFolder}/${rules.projectsFolder}`, false, true],
+        [
+            `${rules.publicFolder}/${rules.englishFolder}/${rules.projectsFolder}`,
+            true,
+            true,
+        ],
+    ] as const;
+    const match = folders.find(
+        ([folder]) =>
+            file.startsWith(folder + "/") &&
+            !file.slice(folder.length + 1).includes("/") &&
+            file.endsWith(".md")
     );
+    if (!match) throw new Error("请打开配置的公开目录中的文章。");
+    const [, en, project] = match;
     const key = project ? file.split("/").pop()!.slice(0, -3) : slug;
     if (
         typeof key !== "string" ||
@@ -33,6 +55,14 @@ export function articleUrl(file: string, slug: unknown, base: string): string {
         throw new Error("博客网址必须使用 HTTP(S)。");
     return url.href;
 }
-export function publicChanges(paths: string[]): boolean {
-    return paths.some((p) => p.startsWith("Blog/") || p.startsWith("assets/"));
+export function publicChanges(
+    paths: string[],
+    rules: PublishingConfig = PUBLISH_DEFAULTS
+): boolean {
+    return paths.some(
+        (p) =>
+            p === CONFIG_FILE ||
+            p.startsWith(rules.publicFolder + "/") ||
+            p.startsWith(rules.assetsFolder + "/")
+    );
 }

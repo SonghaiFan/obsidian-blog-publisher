@@ -1,3 +1,9 @@
+import {
+    readPublishing,
+    CONFIG_FILE,
+    validatePublishing,
+    PUBLISH_DEFAULTS,
+} from "./publishing";
 import { FileSystemAdapter, Modal, Setting, TFile, requestUrl } from "obsidian";
 import { execFile, spawn } from "child_process";
 import type { ChildProcess } from "child_process";
@@ -14,6 +20,12 @@ export class BlogService {
     constructor(readonly plugin: ObsidianGit) {}
     get config() {
         return { ...BLOG_DEFAULTS, ...this.plugin.settings.blog };
+    }
+    get publishing() {
+        return readPublishing(this.root);
+    }
+    private publicChanges(paths: string[]) {
+        return publicChanges(paths, this.publishing);
     }
     get root() {
         const adapter = this.plugin.app.vault.adapter;
@@ -140,12 +152,12 @@ export class BlogService {
     }
     private async dirtyPublic() {
         return (
-            publicChanges(
+            this.publicChanges(
                 this.paths(
                     await this.git(["diff", "--name-only", "-z", "HEAD", "--"])
                 )
             ) ||
-            publicChanges(
+            this.publicChanges(
                 this.paths(
                     await this.git([
                         "ls-files",
@@ -160,6 +172,12 @@ export class BlogService {
     async beforePush() {
         try {
             await this.identity();
+            if (
+                (
+                    await this.git(["status", "--porcelain", "--", CONFIG_FILE])
+                ).trim()
+            )
+                throw new Error("公开目录配置尚未提交，请先提交配置后推送。");
             const changed = this.paths(
                 await this.git([
                     "diff",
@@ -170,14 +188,15 @@ export class BlogService {
                     "--",
                 ])
             );
-            if (publicChanges(changed)) {
+            if (this.publicChanges(changed)) {
                 const tree = await this.git([
                     "ls-tree",
                     "-r",
                     "HEAD",
                     "--",
-                    "Blog",
-                    "assets",
+                    this.publishing.publicFolder,
+                    this.publishing.assetsFolder,
+                    CONFIG_FILE,
                 ]);
                 if (tree.split("\n").some((line) => line.startsWith("120000 ")))
                     throw new Error("公开内容不能包含符号链接。");
@@ -232,6 +251,7 @@ export class BlogService {
         if (!path.isAbsolute(website) || !path.isAbsolute(this.config.nodePath))
             throw new Error("请填写 website 与 Node 的绝对路径。");
         // Reusing the user's explicitly configured external website is the intentional integration boundary.
+        await fs.access(path.join(website, "scripts/publishing-config.mjs"));
         const resolved = await this.run(
             this.config.nodePath,
             [
@@ -258,7 +278,8 @@ export class BlogService {
             url: articleUrl(
                 file.path,
                 cache?.frontmatter?.slug,
-                this.config.blogUrl
+                this.config.blogUrl,
+                this.publishing
             ),
         };
     }
@@ -311,6 +332,13 @@ export class BlogService {
                 (await this.git(["rev-parse", "@{upstream}"])).trim()
             )
                 throw new Error("请先同步已有提交，再单独发布文章。");
+            const configChanges = (
+                await this.git(["status", "--porcelain", "--", CONFIG_FILE])
+            ).trim();
+            if (configChanges)
+                throw new Error(
+                    "发布目录配置尚未同步，请先同步配置再单独发布文章。"
+                );
             const files = [a.file.path];
             const links = (a.cache?.embeds ?? []).map((e) => e.link);
             const cover: unknown = a.cache?.frontmatter?.cover;
@@ -324,8 +352,10 @@ export class BlogService {
                         decodeURIComponent(link.split(/[?#|]/)[0]!),
                         a.file.path
                     );
-                if (!linked?.path.startsWith("assets/"))
-                    throw new Error(`附件必须在 assets 内：${link}`);
+                if (
+                    !linked?.path.startsWith(this.publishing.assetsFolder + "/")
+                )
+                    throw new Error(`附件必须在配置的附件目录内：${link}`);
                 if (!files.includes(linked.path)) files.push(linked.path);
             }
             const head = await this.git(["rev-parse", "HEAD"]);
@@ -485,6 +515,84 @@ export class BlogService {
             attr: { style: "white-space:pre-wrap;overflow-wrap:anywhere" },
         });
         m.open();
+    }
+    editPublishing() {
+        const modal = new Modal(this.plugin.app);
+        modal.setTitle("公开发布目录");
+        const draft = {
+            ...this.publishing,
+            privateFolders: [...this.publishing.privateFolders],
+        };
+        modal.contentEl.createEl("p", {
+            text: "路径相对于知识库。只发布公开目录各层的文章和引用附件；保存不会移动文件。配置同步后也用于线上构建。",
+        });
+        const controls: { setValue(value: string): unknown }[] = [];
+        const fields = [
+            ["publicFolder", "公开文章目录"],
+            ["englishFolder", "英文子目录（相对于公开目录）"],
+            ["projectsFolder", "项目子目录（相对于各语言目录）"],
+            ["assetsFolder", "附件目录"],
+        ] as const;
+        for (const [key, name] of fields)
+            new Setting(modal.contentEl).setName(name).addText((t) => {
+                controls.push(t);
+                t.setValue(draft[key]).onChange((value) => {
+                    draft[key] = value.trim();
+                });
+            });
+        new Setting(modal.contentEl)
+            .setName("私人笔记目录（每行一个）")
+            .setDesc("仅用来解析私人链接，不读取或发布正文。")
+            .addTextArea((t) => {
+                controls.push(t);
+                t.setValue(draft.privateFolders.join("\n")).onChange(
+                    (value) => {
+                        draft.privateFolders = value
+                            .split("\n")
+                            .map((v) => v.trim())
+                            .filter(Boolean);
+                    }
+                );
+            });
+        const error = modal.contentEl.createEl("p");
+        new Setting(modal.contentEl)
+            .addButton((b) =>
+                b.setButtonText("恢复默认").onClick(() => {
+                    Object.assign(draft, PUBLISH_DEFAULTS, {
+                        privateFolders: [...PUBLISH_DEFAULTS.privateFolders],
+                    });
+                    fields.forEach(([key], i) =>
+                        controls[i]!.setValue(draft[key])
+                    );
+                    controls[4]!.setValue(draft.privateFolders.join("\n"));
+                })
+            )
+            .addButton((b) =>
+                b
+                    .setButtonText("保存目录设置")
+                    .setCta()
+                    .onClick(() => {
+                        try {
+                            const validated = validatePublishing(draft);
+                            this.queue(async () => {
+                                this.stopPreview();
+                                await this.plugin.app.vault.adapter.write(
+                                    CONFIG_FILE,
+                                    JSON.stringify(validated, null, 2) + "\n"
+                                );
+                                modal.close();
+                                this.plugin.displayMessage(
+                                    "目录设置已保存。同步配置后，线上发布使用相同设置。"
+                                );
+                            });
+                        } catch (e) {
+                            error.setText(
+                                e instanceof Error ? e.message : String(e)
+                            );
+                        }
+                    })
+            );
+        modal.open();
     }
     panel() {
         const m = new Modal(this.plugin.app);
