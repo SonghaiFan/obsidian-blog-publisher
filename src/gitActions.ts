@@ -419,6 +419,11 @@ export class GitActions {
         commitMessage,
         mode = "all",
     }: CommitAndSyncOptions): Promise<CommitAndSyncResult> {
+        if (this.plugin.blog) {
+            await this.plugin.blog.identity();
+            if (this.plugin.settings.syncMethod === "reset")
+                throw new Error("博客同步不支持 reset 拉取方式。");
+        }
         if (
             this.plugin.settings.syncMethod == "reset" &&
             this.plugin.settings.pullBeforePush
@@ -995,6 +1000,10 @@ export class GitActions {
         const actionResult = await runGitAction<RawCommandResult>(
             this.plugin,
             async () => {
+                if (this.plugin.blog)
+                    throw new Error(
+                        "博客模式不提供可绕过推送检查的原始 Git 命令；请使用终端处理特殊操作。"
+                    );
                 if (!(this.plugin.gitManager instanceof SimpleGit)) {
                     throw new Error(
                         "Raw Git commands are only supported on desktop"

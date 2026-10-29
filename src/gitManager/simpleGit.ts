@@ -975,6 +975,7 @@ export class SimpleGit extends GitManager {
 
     async push(): Promise<PushResult> {
         return this.withGitOperation(GitOperation.push, async () => {
+            await this.plugin.blog?.beforePush();
             try {
                 if (this.plugin.settings.updateSubmodules) {
                     if (this.getVaultPathspec() == undefined) {

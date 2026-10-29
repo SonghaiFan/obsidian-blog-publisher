@@ -1,3 +1,6 @@
+import { BLOG_DEFAULTS } from "./blog/model";
+import { BlogService } from "./blog/service";
+import { PublisherSettingsTab } from "./blog/settings";
 import { Errors } from "isomorphic-git";
 import type { Debouncer, Menu, TAbstractFile, WorkspaceLeaf } from "obsidian";
 import {
@@ -52,6 +55,7 @@ import { runGitAction, type GitActionResult } from "./gitAction";
 import { GitActions } from "./gitActions";
 
 export default class ObsidianGit extends Plugin {
+    blog = new BlogService(this);
     gitActions = new GitActions(this);
     gitManager!: GitManager;
     automaticsManager = new AutomaticsManager(this);
@@ -177,9 +181,15 @@ export default class ObsidianGit extends Plugin {
         await this.loadSettings();
         await this.migrateSettings();
 
-        this.settingsTab = new ObsidianGitSettingsTab(this.app, this);
+        this.settingsTab = new PublisherSettingsTab(this.app, this);
         this.addSettingTab(this.settingsTab);
 
+        try {
+            this.blog.assertOwner();
+        } catch (error) {
+            this.displayError(error);
+            return;
+        }
         if (!this.localStorage.getPluginDisabled()) {
             this.registerStuff();
 
@@ -311,27 +321,7 @@ export default class ObsidianGit extends Plugin {
         this.registerView(SPLIT_DIFF_VIEW_CONFIG.type, (leaf) => {
             return new SplitDiffView(leaf, this);
         });
-        this.addRibbonIcon(
-            "git-pull-request",
-            "Open Git source control",
-            async () => {
-                const leafs = this.app.workspace.getLeavesOfType(
-                    SOURCE_CONTROL_VIEW_CONFIG.type
-                );
-                let leaf: WorkspaceLeaf;
-                if (leafs.length === 0) {
-                    leaf =
-                        this.app.workspace.getRightLeaf(false) ??
-                        this.app.workspace.getLeaf();
-                    await leaf.setViewState({
-                        type: SOURCE_CONTROL_VIEW_CONFIG.type,
-                    });
-                } else {
-                    leaf = leafs.first()!;
-                }
-                await this.app.workspace.revealLeaf(leaf);
-            }
-        );
+        this.addRibbonIcon("send", "Blog Publisher", () => this.blog.panel());
 
         this.registerHoverLinkSource(SOURCE_CONTROL_VIEW_CONFIG.type, {
             display: "Git View",
@@ -497,6 +487,7 @@ export default class ObsidianGit extends Plugin {
     }
 
     unloadPlugin() {
+        this.blog.dispose();
         this.gitReady = false;
         this.repositoryMissing = false;
         this.app.workspace.trigger("obsidian-git:repository-state-changed");
@@ -507,7 +498,7 @@ export default class ObsidianGit extends Plugin {
         this.statusBar?.remove();
         this.statusBar = undefined;
         this.branchBar = undefined;
-        this.gitManager.unload();
+        this.gitManager?.unload();
         this.promiseQueue.clear();
 
         for (const interval of this.intervalsToClear) {
@@ -515,7 +506,7 @@ export default class ObsidianGit extends Plugin {
         }
         this.intervalsToClear = [];
 
-        this.debRefresh.cancel();
+        this.debRefresh?.cancel();
     }
 
     onunload() {
@@ -528,6 +519,15 @@ export default class ObsidianGit extends Plugin {
         //Check for existing settings
         if (data == undefined) {
             data = <ObsidianGitSettings>{ showedMobileNotice: true };
+        }
+        // Migrate only known publisher fields; keep automatic synchronization off initially.
+        if (!data.blog) {
+            const legacy = data as unknown as Record<string, unknown>;
+            const blog = { ...BLOG_DEFAULTS };
+            for (const key of Object.keys(blog) as (keyof typeof blog)[]) {
+                if (typeof legacy[key] === "string") blog[key] = legacy[key];
+            }
+            data.blog = blog;
         }
         this.settings = mergeSettingsByPriority(DEFAULT_SETTINGS, data);
     }
@@ -542,6 +542,8 @@ export default class ObsidianGit extends Plugin {
     }
 
     async init({ fromReload = false }): Promise<void> {
+        this.blog.activate();
+        this.blog.assertOwner();
         if (this.localStorage.getPluginDisabled()) {
             // This is already guarded in `onload`, but we also guard here to
             // avoid any issues if `init` is called directly.

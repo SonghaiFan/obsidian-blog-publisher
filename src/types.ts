@@ -12,6 +12,7 @@ import type {
 export type CommitMode = "smart" | "staged" | "all";
 
 export interface ObsidianGitSettings {
+    blog?: import("./blog/model").BlogSettings;
     commitMessage: string;
     autoCommitMessage: string;
     commitMessageScript: string;

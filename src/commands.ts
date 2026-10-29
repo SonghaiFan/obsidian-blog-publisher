@@ -8,6 +8,16 @@ import { togglePreviewHunk } from "./editor/signs/tooltip";
 
 export function addCommmands(plugin: ObsidianGit) {
     const app = plugin.app;
+    for (const [id, name, callback] of [
+        ["open-panel", "打开博客面板", () => plugin.blog.panel()],
+        ["sync-vault", "同步", () => plugin.blog.sync()],
+        ["check-article", "检查当前文章", () => plugin.blog.check()],
+        ["preview-article", "预览当前文章", () => plugin.blog.previewArticle()],
+        ["publish-article", "发布当前文章", () => plugin.blog.publish()],
+        ["deployment-status", "查看发布状态", () => plugin.blog.status()],
+        ["stop-preview", "停止预览", () => plugin.blog.stopPreview()],
+    ] as const)
+        plugin.addCommand({ id, name, callback });
 
     plugin.addCommand({
         id: "edit-gitignore",
@@ -425,7 +435,7 @@ export function addCommmands(plugin: ObsidianGit) {
             const gitManager = plugin.gitManager;
             if (checking) {
                 // only available on desktop
-                return gitManager instanceof SimpleGit;
+                return !plugin.blog && gitManager instanceof SimpleGit;
             } else {
                 void plugin.tools.runRawCommand();
                 return true;

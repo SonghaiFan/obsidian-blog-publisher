@@ -6,7 +6,7 @@ on:
             - "*"
 
 env:
-    PLUGIN_NAME: obsidian-git
+    PLUGIN_NAME: songhai-blog-publisher
 
 permissions:
     id-token: write
@@ -44,7 +44,7 @@ jobs:
                   tag_name: ${{ github.ref }}
                   name: ${{ github.ref_name }}
                   generate_release_notes: false
-                  body: See the [changelog](https://github.com/Vinzent03/obsidian-git/blob/master/CHANGELOG.md) for details.
+                  body: See the [changelog](https://github.com/SonghaiFan/obsidian-blog-publisher/blob/master/README.md) for details.
                   draft: false
                   prerelease: false
                   files: |

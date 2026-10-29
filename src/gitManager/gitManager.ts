@@ -29,6 +29,13 @@ export abstract class GitManager {
         operation: GitOperation,
         fn: () => Promise<T>
     ): Promise<T> {
+        this.plugin.blog?.assertOwner();
+        if (
+            this.plugin.blog &&
+            operation === GitOperation.pull &&
+            this.plugin.settings.syncMethod === "reset"
+        )
+            throw new Error("博客模式不允许 reset 拉取。");
         this.plugin.setPluginState({ operation });
         try {
             return await fn();

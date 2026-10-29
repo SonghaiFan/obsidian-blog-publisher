@@ -1,157 +1,40 @@
-# Git Plugin for Obsidian
+# Blog Publisher
 
-A powerful community plugin for [Obsidian.md](https://obsidian.md) that brings Git integration right into your vault. Automatically commit, pull, push, and see your changes — all within Obsidian.
+一个基于 [Obsidian Git](https://github.com/Vinzent03/obsidian-git) 的桌面版 Obsidian 插件，将私有笔记同步与博客发布整合为一个插件。
 
-## Documentation
+## 0.3.0 功能
 
-All setup instructions (including mobile), common issues, tips, and advanced configuration can be found in the [full documentation](https://publish.obsidian.md/git-doc).
+- 简洁入口：同步、预览、检查、发布当前文章、发布状态和改动列表。
+- 复用上游 Git 后端、串行操作队列、自动同步、历史、差异和冲突处理。
+- 每次推送均核对 GitHub 账号和私有 Vault 仓库；公开内容变更必须通过现有 website 的完整构建。
+- 构建失败会停止推送并暂停自动任务，已提交内容保留在本地；修复后点击“同步”恢复。
+- 单篇发布展示文章与引用附件，确认后提交；已有待推送提交、暂存修改或冲突时要求先处理。
+- Daily / Notes 同步到私有仓库；网站继续通过现有构建流程发布 Blog。
+- 自动同步默认关闭，可在设置中指定分钟数；完整选项位于高级 Git 设置。
 
-> Mobile users: The plugin is **highly unstable**. Please check the dedicated [Mobile](#mobile-support-experimental) section below.
+## 安装与迁移
 
-## Key Features
+需要桌面版 Obsidian >= 1.13、Node >= 24、Git 和已登录的 GitHub CLI，以及现有 website 工程及其依赖。
 
-- **Automatic commit-and-sync** (commit, pull, and push) on a schedule.
-- **Auto-pull on Obsidian startup**
-- **Source Control View** to stage/unstage, commit and diff files - Open it with the `Open source control view` command.
-- **History View** for browsing commit logs and changed files - Open it with the `Open history view` command.
-- **Diff View** for reviewing changes side by side and staging or resetting individual hunks - Open it with the `Open diff view` command.
-- **Conflict resolution in the editor** with highlighted changes and buttons to keep either version, both versions, or the common ancestor when available.
-- **Signs in the editor** to indicate added, modified, and deleted lines/hunks (desktop only).
-- **Submodule support** for managing multiple repositories (desktop only and opt-in)
-- GitHub integration to open files and history in your browser
+1. 停用原 Obsidian Git 和旧 Blog Publisher。
+2. 将发布包内 `main.js`、`manifest.json`、`styles.css` 放入 Vault 的 `.obsidian/plugins/songhai-blog-publisher/`。
+3. 启用 Blog Publisher，检查 Website 目录、Node 路径、私有仓库和账号。
+4. 先预览或检查文章，再按需要启用自动同步。
 
-> For detailed file history, consider pairing this plugin with the [Version History Diff](obsidian://show-plugin?id=obsidian-version-history-diff) plugin.
+旧 Blog Publisher 的五个发布配置字段自动迁移；不会导入原 Obsidian Git 的凭据或自动任务设置。原 Obsidian Git 与本插件不能同时启用；检测到时本插件停止 Git 操作。首次切换如已触发保护，停用原插件后重新启用本插件。
 
-## UI Previews
+博客模式要求 Vault 根目录是配置的私有仓库，main 跟踪 origin/main。不支持 reset 拉取、子模块同步、独立 gitDir、移动端及绕过检查的任意 Git 命令。构建时需停止 5173 端口上的预览。其他程序仍可能修改仓库；此插件只协调自身队列。
 
-### Source Control View
+## 开发
 
-Manage your file changes directly inside Obsidian, including staging and unstaging individual files and committing them. The main Commit action commits staged changes when present. The actions menu provides explicit staged-only and all-changes alternatives, plus amending the previous commit on desktop.
+```sh
+pnpm install --frozen-lockfile
+pnpm run all
+pnpm run build
+```
 
-![Source Control View](images/source-view.png)
+博客功能位于 `src/blog/`。原项目文档见 [README.upstream.md](README.upstream.md)。
 
-### History View
+## 来源与许可
 
-Show the commit history of your repository. The commit message, author, date, and changed files can be shown. Author and date are disabled by default as shown in the screenshot, but can be enabled in the settings.
-
-![History View](images/history-view.png)
-
-### Diff View
-
-Compare versions side by side with highlighted changes. Review, stage, or reset individual hunks without leaving the diff view.
-Open it from the source control view or via the `Open diff view` command.
-
-![Diff View](images/diff-view.png)
-
-### Signs in the Editor
-
-View line-by-line changes directly in Live Preview with added, modified, and deleted line/hunk indicators. You can stage and reset changes right from the signs. There are also commands to navigate between hunks and stage/reset hunks under the cursor. Needs to be enabled in the plugin settings.
-
-![Editor signs with a hunk preview and stage/reset controls](images/signs.png)
-
-### Conflict Resolution
-
-Resolve conflicting changes in Live Preview without leaving your note. Highlighted sections show your version and the incoming version, with buttons to keep ours, theirs, or both. The bar at the top lets you apply a choice to every conflict in the file. Source Control lists conflicted files and shows how many conflict blocks remain.
-
-![Conflict resolution in Live Preview, with local and incoming changes and the Source Control conflict list](images/conflict-resolution.png)
-
-When Git includes the common ancestor (for example, with `merge.conflictStyle=diff3`), you can also compare and keep the base version.
-
-![Conflict resolution with the common ancestor and Keep base controls](images/conflict-resolution-base.png)
-
-After reviewing the result, mark the file as resolved in Source Control, then commit to finish the merge. See the [conflict resolution guide](https://publish.obsidian.md/git-doc/Conflict+resolution) for the full workflow.
-
-## Available Commands
-
-> Not exhaustive - these are just some of the most common commands. For a full list, see the Command Palette in Obsidian.
-
-- Changes
-  - `List changed files`: Lists all changes in a modal
-  - `Open diff view`: Open diff view for the current file
-  - `Stage current file`
-  - `Unstage current file`
-  - `Discard all changes`: Discard all changes in the repository
-- Commit
-  - `Commit`: Commits staged changes when present. If nothing is staged, either stages and commits all changes or stops, depending on the `Stage all changes when nothing is staged` setting
-  - `Commit with specific message`: Same as above, but with a custom message
-  - `Commit all changes`: Commits all changes without pushing
-  - `Commit all changes with specific message`: Same as above, but with a custom message
-- Commit-and-sync
-  - `Commit-and-sync`: With default settings, this will commit all changes, pull, and push
-  - `Commit-and-sync with specific message`: Same as above, but with a custom message
-  - `Commit-and-sync and close`: Same as `Commit-and-sync`, but if running on desktop, will close the Obsidian window. Will not exit Obsidian app on mobile.
-- Remote
-  - `Push`, `Pull`
-  - `Edit remotes`: Add new remotes or edit existing remotes
-  - `Remove remote`
-  - `Clone an existing remote repo`: Opens dialog that will prompt for URL and authentication to clone a remote repo
-  - `Open file on GitHub`: Open the file view of the current file on GitHub in a browser window. Note: only works on desktop
-  - `Open file history on GitHub`: Open the file history of the current file on GitHub in a browser window. Note: only works on desktop
-- Manage local repository
-  - `Initialize a new repo`
-  - `Create new branch`
-  - `Delete branch`
-  - `CAUTION: Delete repository`
-- Miscellaneous
-  - `Open source control view`: Opens side pane displaying [Source control view](#source-control-view)
-  - `Open history view`: Opens side pane displaying [History view](#history-view)
-  - `Edit .gitignore`
-  - `Add file to .gitignore`: Add current file to `.gitignore`
-
-## Desktop Notes
-
-### Community scorecard
-
-The [Obsidian community scorecard](https://community.obsidian.md/plugins/obsidian-git#scorecard) reports automated code checks, including warnings about shell execution and direct filesystem access. On desktop, this plugin needs those capabilities to run your installed Git and work with repository metadata and Git configuration beyond Obsidian's vault API. These requirements contribute to the Review rating, so read it alongside the individual findings and in the context of native Git integration.
-
-### Authentication
-
-Some Git services may require further setup for HTTPS/SSH authentication. Refer to the [Authentication Guide](https://publish.obsidian.md/git-doc/Authentication)
-
-### Obsidian on Linux
-
-- Snap is not supported due to its sandboxing restrictions.
-- Flatpak is not recommended, because it doesn't have access to all system files. They are actively fixing many issues, but there are still issues. Especially with more advanced setups.
-- Please use AppImage or a full access installation of your system's package manager instead ([Linux installation guide](https://publish.obsidian.md/git-doc/Installation#Linux))
-
-## Mobile Support (Experimental)
-
-The Git implementation on mobile is **very unstable**! I would not recommend using this plugin on mobile, but try other syncing services.
-
-One such alternative is [GitSync](https://github.com/ViscousPot/GitSync), which is available on both Android and iOS. It is not associated with this plugin, but it may be a better option for mobile users. A tutorial for setting it up can be found [here](https://viscouspotenti.al/posts/gitsync-all-devices-tutorial).
-
-> The Git plugin works on mobile thanks to [isomorphic-git](https://isomorphic-git.org/), a JavaScript-based re-implementation of Git - but it comes with serious limitations and issues. It is not possible for an Obsidian plugin to use a native Git installation on Android or iOS.
-
-### Mobile Feature Limitations
-
-- No **SSH authentication** ([isomorphic-git issue](https://github.com/isomorphic-git/isomorphic-git/issues/231))
-- Limited repo size, because of memory restrictions
-- No rebase merge strategy
-- No submodules support
-
-### Performance Caveats
-
-> [!caution]
-> Depending on your device and available free RAM, Obsidian may
->
-> - crash on clone/pull
-> - create buffer overflow errors
-> - run indefinitely.
->
-> It's caused by the underlying git implementation on mobile, which is not efficient. I don't know how to fix this. If that's the case for you, I have to admit this plugin won't work for you. So commenting on any issue or creating a new one won't help. I am sorry.
-
-### Tips for Mobile Use:
-
-If you have a large repo/vault I recommend staging individual files and setting automatic commit globs to Include matches with an empty list, so automatic commits use only staged files.
-
-## Contact & Credits
-
-- The Line Authoring feature was developed by [GollyTicker](https://github.com/GollyTicker), so any questions may be best answered by her.
-- This plugin was initially developed by [denolehov](https://github.com/denolehov). Since March 2021, it's me [Vinzent03](https://github.com/Vinzent03) who is developing this plugin. That's why the GitHub repository got moved to my account in July 2024.
-- If you have any kind of feedback or questions, feel free to reach out via GitHub issues.
-
-## Support
-
-If you find this plugin useful and would like to support its development, you can support me on Ko-fi.
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/F1F195IQ5)
+Fork 自 Obsidian Git，基线提交 `437f698ab6436f02790bfece9d11ff443742ee92`。保留上游历史、MIT LICENSE 和贡献者署名。本项目独立维护，不代表上游官方版本。

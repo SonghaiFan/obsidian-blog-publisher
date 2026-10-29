@@ -1,7 +1,7 @@
 {
-    "name": "obsidian-git",
-    "version": "2.42.0",
-    "description": "Integrate Git version control with automatic backup and other advanced features in Obsidian.md",
+    "name": "songhai-blog-publisher",
+    "version": "0.3.0",
+    "description": "Blog Publisher, a fork of Obsidian Git",
     "main": "main.js",
     "scripts": {
         "dev": "node esbuild.config.mjs dev",

@@ -712,6 +712,7 @@ export class IsomorphicGit extends GitManager {
     async push(): Promise<PushResult> {
         const progressNotice = this.showNotice("Initializing push");
         return this.withGitOperation(GitOperation.push, async () => {
+            await this.plugin.blog?.beforePush();
             try {
                 const status = await this.branchInfo();
                 const trackingBranch = status.tracking;
