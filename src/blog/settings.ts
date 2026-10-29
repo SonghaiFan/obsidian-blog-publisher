@@ -1,3 +1,4 @@
+import * as path from "path";
 import type { App, SettingDefinitionItem } from "obsidian";
 import type ObsidianGit from "../main";
 import { ObsidianGitSettingsTab } from "../setting/settings";
@@ -58,6 +59,11 @@ export class PublisherSettingsTab extends ObsidianGitSettingsTab {
         ];
     }
     getControlValue(key: string): unknown {
+        if (key === "blog.websitePath")
+            return (
+                this.host.blog.config.websitePath ||
+                path.resolve(this.host.blog.root, "../Projects/website")
+            );
         if (key.startsWith("blog."))
             return this.host.blog.config[
                 key.slice(5) as keyof typeof BLOG_DEFAULTS

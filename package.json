@@ -1,6 +1,6 @@
 {
     "name": "songhai-blog-publisher",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "description": "Blog publishing and Git synchronization for Obsidian",
     "main": "main.js",
     "scripts": {
